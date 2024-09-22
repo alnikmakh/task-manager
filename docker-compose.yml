@@ -11,40 +11,39 @@ services:
       - mongo1
       - mongo2
       - mongo3
+    command: sh -c "npx prisma db push && yarn start:prod"
 
   mongo1:
     image: mongo:5
-    command: ["bash", "-c", "mongod --replSet rs0 --bind_ip_all --port 27017 & sleep 5 && /init-replica.sh"]
+    command: >
+      bash -c "
+      chmod +x /init-replica.sh &&
+      mongod --replSet rs0 --bind_ip_all --port 27017 &
+      sleep 5 &&
+      /init-replica.sh &&
+      wait
+      "
     ports:
       - 27017:27017
     volumes:
       - mongo1_data:/data/db
       - ./init-replica.sh:/init-replica.sh
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=root
-      - MONGO_INITDB_ROOT_PASSWORD=example
 
   mongo2:
     image: mongo:5
-    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27018"]
+    command: mongod --replSet rs0 --bind_ip_all --port 27018
     ports:
       - 27018:27018
     volumes:
       - mongo2_data:/data/db
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=root
-      - MONGO_INITDB_ROOT_PASSWORD=example
 
   mongo3:
     image: mongo:5
-    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27019"]
+    command: mongod --replSet rs0 --bind_ip_all --port 27019
     ports:
       - 27019:27019
     volumes:
       - mongo3_data:/data/db
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=root
-      - MONGO_INITDB_ROOT_PASSWORD=example
 
 volumes:
   mongo1_data:
