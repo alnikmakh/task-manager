@@ -1,49 +1,62 @@
 version: '3.8'
 
 services:
-  app:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - DATABASE_URL=mongodb://mongo1:27017,mongo2:27018,mongo3:27019/nestjs?replicaSet=rs0
-    depends_on:
-      - mongo1
-      - mongo2
-      - mongo3
-    command: sh -c "npx prisma db push && yarn start:prod"
-
   mongo1:
     image: mongo:5
     command: >
       bash -c "
-      chmod +x /init-replica.sh &&
       mongod --replSet rs0 --bind_ip_all --port 27017 &
       sleep 5 &&
-      /init-replica.sh &&
-      wait
+      chmod +x /init-replica.sh &&
+      /init-replica.sh
       "
     ports:
       - 27017:27017
+    networks:
+      - mongo_network
     volumes:
       - mongo1_data:/data/db
       - ./init-replica.sh:/init-replica.sh
+    depends_on:
+      mongo2:
+        condition: service_healthy
+      mongo3:
+        condition: service_healthy
 
   mongo2:
     image: mongo:5
-    command: mongod --replSet rs0 --bind_ip_all --port 27018
+    command: mongod --replSet rs0 --bind_ip_all --port 27017
     ports:
-      - 27018:27018
+      - 27018:27017
+    networks:
+      - mongo_network
     volumes:
       - mongo2_data:/data/db
+    healthcheck:
+      test: mongosh --eval "db.adminCommand('ping')"
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
 
   mongo3:
     image: mongo:5
-    command: mongod --replSet rs0 --bind_ip_all --port 27019
+    command: mongod --replSet rs0 --bind_ip_all --port 27017
     ports:
-      - 27019:27019
+      - 27019:27017
+    networks:
+      - mongo_network
     volumes:
       - mongo3_data:/data/db
+    healthcheck:
+      test: mongosh --eval "db.adminCommand('ping')"
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+networks:
+  mongo_network:
 
 volumes:
   mongo1_data:
