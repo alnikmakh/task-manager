@@ -21,17 +21,44 @@ if [ $i -eq $MAX_RETRIES ]; then
     exit 1
 fi
 
-echo "Initiating replica set..."
+echo "Checking replica set status..."
 
-mongosh --host mongo1:27017 <<EOF
-rs.initiate({
-  _id: "rs0",
-  members: [
-    { _id: 0, host: "mongo1:27017" },
-    { _id: 1, host: "mongo2:27017" },
-    { _id: 2, host: "mongo3:27017" }
-  ]
-})
+REPLICA_STATUS=$(mongosh --host mongo1:27017 --quiet --eval "rs.status().ok")
+
+if [ "$REPLICA_STATUS" == "1" ]; then
+    echo "Replica set is already initialized. Checking if all members are present..."
+    MEMBER_COUNT=$(mongosh --host mongo1:27017 --quiet --eval "rs.status().members.length")
+    if [ "$MEMBER_COUNT" == "3" ]; then
+        echo "All members are present in the replica set. No action needed."
+    else
+        echo "Replica set is initialized but doesn't have all members. Reconfiguring..."
+        mongosh --host mongo1:27017 <<EOF
+        rs.reconfig({
+          _id: "rs0",
+          members: [
+            { _id: 0, host: "mongo1:27017" },
+            { _id: 1, host: "mongo2:27017" },
+            { _id: 2, host: "mongo3:27017" }
+          ]
+        }, {force: true})
 EOF
+    fi
+else
+    echo "Initiating replica set..."
+    mongosh --host mongo1:27017 <<EOF
+    rs.initiate({
+      _id: "rs0",
+      members: [
+        { _id: 0, host: "mongo1:27017" },
+        { _id: 1, host: "mongo2:27017" },
+        { _id: 2, host: "mongo3:27017" }
+      ]
+    })
+EOF
+fi
 
+echo "Waiting for replica set to stabilize..."
+sleep 10
+
+echo "Replica set setup completed."
 tail -f /dev/null
