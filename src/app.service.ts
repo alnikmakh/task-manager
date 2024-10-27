@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ClaimService } from './prisma/claim.service';
+import { ClaimRepository } from 'src/prisma/claim.repository';
 
 @Injectable()
 export class AppService {
-  constructor(private readonly claimService: ClaimService) {}
+  constructor(private readonly claimService: ClaimRepository) {}
 
   async getHello() {
     return await this.claimService.getIdleClaims();
