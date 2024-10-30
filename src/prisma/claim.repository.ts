@@ -18,6 +18,35 @@ export class ClaimRepository {
     });
   }
 
+  async updateSuccessStep(claimId: string, currentStep: number) {
+    await this.prisma.claim.update({
+      where: {
+        id: claimId,
+      },
+      data: {
+        status: ClaimStatus.IDLE,
+        currentScenarioStep: currentStep,
+      },
+    });
+  }
+
+  async updateFailedStep(
+    claimId: string,
+    currentStep: number,
+    fallback: boolean,
+  ) {
+    await this.prisma.claim.update({
+      where: {
+        id: claimId,
+      },
+      data: {
+        status: fallback ? ClaimStatus.IDLE : ClaimStatus.RETRY,
+        fallback,
+        currentScenarioStep: currentStep,
+      },
+    });
+  }
+
   async getOldestIdleClaimAtomic(): Promise<Claim> {
     return this.prisma.$runCommandRaw({
       findOneAndUpdate: 'Claim',
@@ -26,7 +55,6 @@ export class ClaimRepository {
         status: ClaimStatus.IDLE,
       },
       update: { $set: { status: ClaimStatus.IN_PROGRESS } },
-      limit: 100,
     }) as unknown as Promise<Claim>;
   }
 
