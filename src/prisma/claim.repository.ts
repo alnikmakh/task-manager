@@ -18,31 +18,82 @@ export class ClaimRepository {
     });
   }
 
-  async updateSuccessStep(claimId: string, currentStep: number) {
-    await this.prisma.claim.update({
+  async updateStaleInProgressToIdle() {
+    await this.prisma.claim.updateMany({
       where: {
-        id: claimId,
+        status: ClaimStatus.IN_PROGRESS,
+        updatedAt: new Date(Date.now() + 300000),
       },
       data: {
         status: ClaimStatus.IDLE,
-        currentScenarioStep: currentStep,
       },
     });
   }
 
-  async updateFailedStep(
-    claimId: string,
-    currentStep: number,
-    fallback: boolean,
-  ) {
+  async updateRetryToIdle() {
+    await this.prisma.claim.updateMany({
+      where: {
+        status: ClaimStatus.RETRY,
+        updatedAt: new Date(Date.now() + 60000),
+      },
+      data: {
+        status: ClaimStatus.IDLE,
+      },
+    });
+  }
+
+  async updateToIdle({
+    claimId,
+    step,
+    fallback,
+  }: {
+    claimId: string;
+    step: number;
+    fallback: boolean;
+  }) {
     await this.prisma.claim.update({
       where: {
+        status: ClaimStatus.IN_PROGRESS,
         id: claimId,
       },
       data: {
-        status: fallback ? ClaimStatus.IDLE : ClaimStatus.RETRY,
+        status: ClaimStatus.IDLE,
+        currentScenarioStep: step,
         fallback,
-        currentScenarioStep: currentStep,
+      },
+    });
+  }
+
+  async updateToRetry(claimId: string) {
+    await this.prisma.claim.update({
+      where: {
+        status: ClaimStatus.IN_PROGRESS,
+        id: claimId,
+      },
+      data: {
+        status: ClaimStatus.RETRY,
+      },
+    });
+  }
+  async updateToFail(claimId: string) {
+    await this.prisma.claim.update({
+      where: {
+        status: ClaimStatus.IN_PROGRESS,
+        id: claimId,
+      },
+      data: {
+        status: ClaimStatus.FAILED,
+      },
+    });
+  }
+  async updateToSuccess(claimId: string) {
+    await this.prisma.claim.update({
+      where: {
+        status: ClaimStatus.IN_PROGRESS,
+        id: claimId,
+      },
+      data: {
+        status: ClaimStatus.SUCCEEDED,
       },
     });
   }

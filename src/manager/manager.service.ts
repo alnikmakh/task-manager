@@ -3,6 +3,25 @@ import { ClaimRepository } from 'src/prisma/claim.repository';
 import * as crypto from 'node:crypto';
 import { Claim } from '@prisma/client';
 
+export type WorkerResponseStatus =
+  | 'NEXT'
+  | 'PREV'
+  | 'RETRY'
+  | 'SUCCESS'
+  | 'FAIL';
+type WorkerResponseClaimIdPart = {
+  claimId: string;
+};
+type WorkerResponseStatusPart =
+  | {
+      status: 'NEXT' | 'PREV';
+      nextStep: number;
+    }
+  | {
+      status: 'RETRY' | 'SUCCESS' | 'FAIL';
+    };
+type WorkerResponse = WorkerResponseClaimIdPart & WorkerResponseStatusPart;
+
 @Injectable()
 export class ManagerService {
   loopActive = true;
@@ -18,33 +37,49 @@ export class ManagerService {
     }
   }
 
-  async processWorkerResponse(workerAnswerDto: {
-    claimId: string;
-    currentStep: number;
-    success: boolean;
-    fallback: boolean;
-  }) {
-    const { success, claimId, fallback, currentStep } = workerAnswerDto;
-    if (success) {
-      await this.claimRepository.updateSuccessStep(claimId, currentStep);
-    } else {
-      await this.claimRepository.updateFailedStep(
-        claimId,
-        currentStep,
-        fallback,
-      );
+  async startSanitizingLoop() {
+    while (true) {
+      await this.claimRepository.updateStaleInProgressToIdle();
+      await this.claimRepository.updateRetryToIdle();
+      await new Promise((resolve) => {
+        setTimeout(resolve, 5000);
+      });
     }
+  }
+
+  async processWorkerResponse(workerAnswerDto: WorkerResponse) {
+    // TODO: add zod validation for worker response and process error
+    const { claimId, status } = workerAnswerDto;
+    if (status === 'NEXT' || status === 'PREV') {
+      await this.claimRepository.updateToIdle({
+        claimId,
+        step: workerAnswerDto.nextStep,
+        fallback: status === 'PREV',
+      });
+    }
+    if (status === 'RETRY') {
+      await this.claimRepository.updateToRetry(claimId);
+    }
+    if (status === 'FAIL') {
+      await this.claimRepository.updateToFail(claimId);
+    }
+    if (status === 'SUCCESS') {
+      await this.claimRepository.updateToSuccess(claimId);
+    }
+    return;
   }
 
   async sendClaimsToWorker(claims: Claim[]) {
     // temporal fake implementation
     for (const claim of claims) {
-      (async () => {
-        await this.processWorkerResponse({
+      (() => {
+        this.processWorkerResponse({
           claimId: claim.id,
-          fallback: false,
-          currentStep: claim.currentScenarioStep + 1,
-          success: true,
+          status: claim.currentScenarioStep === 5 ? 'SUCCESS' : 'NEXT',
+          nextStep:
+            claim.currentScenarioStep === 5
+              ? claim.currentScenarioStep
+              : claim.currentScenarioStep + 1,
         });
       })();
     }
