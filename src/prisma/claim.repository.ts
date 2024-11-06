@@ -30,7 +30,7 @@ export class ClaimRepository {
     });
   }
 
-  async updateRetryToIdle() {
+  async updateExpiredRetryToIdle() {
     await this.prisma.claim.updateMany({
       where: {
         status: ClaimStatus.RETRY,
@@ -42,7 +42,7 @@ export class ClaimRepository {
     });
   }
 
-  async updateToIdle({
+  async updateInProgressToIdle({
     claimId,
     step,
     fallback,
@@ -64,7 +64,7 @@ export class ClaimRepository {
     });
   }
 
-  async updateToRetry(claimId: string) {
+  async updateInProgressToRetry(claimId: string) {
     await this.prisma.claim.update({
       where: {
         status: ClaimStatus.IN_PROGRESS,
@@ -75,7 +75,7 @@ export class ClaimRepository {
       },
     });
   }
-  async updateToFail(claimId: string) {
+  async updateInProgressToFail(claimId: string) {
     await this.prisma.claim.update({
       where: {
         status: ClaimStatus.IN_PROGRESS,
@@ -86,7 +86,7 @@ export class ClaimRepository {
       },
     });
   }
-  async updateToSuccess(claimId: string) {
+  async updateInProgressToSuccess(claimId: string) {
     await this.prisma.claim.update({
       where: {
         status: ClaimStatus.IN_PROGRESS,

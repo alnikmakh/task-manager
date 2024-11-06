@@ -40,7 +40,7 @@ export class ManagerService {
   async startSanitizingLoop() {
     while (true) {
       await this.claimRepository.updateStaleInProgressToIdle();
-      await this.claimRepository.updateRetryToIdle();
+      await this.claimRepository.updateExpiredRetryToIdle();
       await new Promise((resolve) => {
         setTimeout(resolve, 5000);
       });
@@ -51,20 +51,20 @@ export class ManagerService {
     // TODO: add zod validation for worker response and process error
     const { claimId, status } = workerAnswerDto;
     if (status === 'NEXT' || status === 'PREV') {
-      await this.claimRepository.updateToIdle({
+      await this.claimRepository.updateInProgressToIdle({
         claimId,
         step: workerAnswerDto.nextStep,
         fallback: status === 'PREV',
       });
     }
     if (status === 'RETRY') {
-      await this.claimRepository.updateToRetry(claimId);
+      await this.claimRepository.updateInProgressToRetry(claimId);
     }
     if (status === 'FAIL') {
-      await this.claimRepository.updateToFail(claimId);
+      await this.claimRepository.updateInProgressToFail(claimId);
     }
     if (status === 'SUCCESS') {
-      await this.claimRepository.updateToSuccess(claimId);
+      await this.claimRepository.updateInProgressToSuccess(claimId);
     }
     return;
   }
