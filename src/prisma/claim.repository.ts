@@ -7,22 +7,38 @@ export class ClaimRepository {
   constructor(private prisma: PrismaService) {}
 
   async getIdleClaims(): Promise<Claim[]> {
-    return this.prisma.claim.findMany({
-      where: {
-        status: ClaimStatus.IDLE,
-      },
-      orderBy: {
-        updatedAt: 'asc',
-      },
-      take: 3,
+    return this.prisma.$transaction(async (prismaWithSession) => {
+      const claims = await prismaWithSession.claim.findMany({
+        where: {
+          status: ClaimStatus.IDLE,
+        },
+        orderBy: {
+          updatedAt: 'asc',
+        },
+        take: 100,
+      });
+
+      await this.prisma.claim.updateMany({
+        where: {
+          id: {
+            in: claims.map((claim) => claim.id),
+          },
+        },
+        data: {
+          status: ClaimStatus.IN_PROGRESS,
+        },
+      });
+      return claims;
     });
   }
 
   async updateStaleInProgressToIdle() {
-    await this.prisma.claim.updateMany({
+    return this.prisma.claim.updateMany({
       where: {
         status: ClaimStatus.IN_PROGRESS,
-        updatedAt: new Date(Date.now() + 300000),
+        updatedAt: {
+          lte: new Date(Date.now() - 300000),
+        },
       },
       data: {
         status: ClaimStatus.IDLE,
@@ -31,10 +47,12 @@ export class ClaimRepository {
   }
 
   async updateExpiredRetryToIdle() {
-    await this.prisma.claim.updateMany({
+    return this.prisma.claim.updateMany({
       where: {
         status: ClaimStatus.RETRY,
-        updatedAt: new Date(Date.now() + 60000),
+        updatedAt: {
+          lte: new Date(Date.now() - 60000),
+        },
       },
       data: {
         status: ClaimStatus.IDLE,

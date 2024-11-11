@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit } from '@nestjs/common';
 import { ManagerService } from './manager.service';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { ManagerController } from './manager.controller';
@@ -8,4 +8,10 @@ import { ManagerController } from './manager.controller';
   providers: [ManagerService],
   controllers: [ManagerController],
 })
-export class ManagerModule {}
+export class ManagerModule implements OnModuleInit {
+  constructor(private managerService: ManagerService) {}
+  onModuleInit() {
+    this.managerService.startClaimRetrievingLoop();
+    this.managerService.startSanitizingLoop();
+  }
+}

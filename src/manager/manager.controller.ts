@@ -3,7 +3,10 @@ import { ManagerService } from 'src/manager/manager.service';
 
 @Controller('manager')
 export class ManagerController {
-  constructor(private readonly managerService: ManagerService) {}
+  logger: Logger;
+  constructor(private readonly managerService: ManagerService) {
+    this.logger = new Logger('ManagerController');
+  }
   @Post('create-claim')
   async createClaim() {
     return this.managerService.createRandomClaim();
