@@ -90,6 +90,9 @@ export class ClaimRepository {
       },
       data: {
         status: ClaimStatus.RETRY,
+        retries: {
+          increment: 1,
+        },
       },
     });
   }

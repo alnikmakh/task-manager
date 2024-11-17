@@ -1,14 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ClaimRepository } from 'src/prisma/claim.repository';
 import * as crypto from 'node:crypto';
-import { Claim } from '@prisma/client';
 
-export type WorkerResponseStatus =
-  | 'NEXT'
-  | 'PREV'
-  | 'RETRY'
-  | 'SUCCESS'
-  | 'FAIL';
+type ClaimData = {
+  id: string;
+  payload: string;
+  scenario: string;
+  currentScenarioStep: number;
+  fallback: boolean;
+};
 type WorkerResponseClaimIdPart = {
   claimId: string;
 };
@@ -34,6 +34,7 @@ export class ManagerService {
   async startClaimRetrievingLoop() {
     while (this.loopActive) {
       const claims = await this.claimRepository.getIdleClaims();
+      // TODO: strip unnecessary fields from claims with zod or with prisma
       await this.sendClaimsToWorker(claims);
       this.logger.debug(`Claims ${claims.map((claim) => claim.id)} sent`);
       await new Promise((resolve) => {
@@ -82,7 +83,7 @@ export class ManagerService {
     return;
   }
 
-  async sendClaimsToWorker(claims: Claim[]) {
+  async sendClaimsToWorker(claims: ClaimData[]) {
     return fetch('http://localhost:3001', {
       method: 'POST',
       headers: {
