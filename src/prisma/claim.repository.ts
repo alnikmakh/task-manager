@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Claim, ClaimStatus } from '@prisma/client';
+import { ClaimRepositoryInterface } from 'src/types/claim.repository.interface';
 
 @Injectable()
-export class ClaimRepository {
+export class ClaimRepository implements ClaimRepositoryInterface {
   constructor(private prisma: PrismaService) {}
 
-  async getIdleClaims(): Promise<Claim[]> {
+  async getIdleClaims() {
     return this.prisma.$transaction(async (prismaWithSession) => {
       const claims = await prismaWithSession.claim.findMany({
         where: {

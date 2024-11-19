@@ -1,14 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ClaimRepository } from 'src/prisma/claim.repository';
 import * as crypto from 'node:crypto';
+import { ClaimData } from 'src/types/claim-data';
 
-type ClaimData = {
-  id: string;
-  payload: string;
-  scenario: string;
-  currentScenarioStep: number;
-  fallback: boolean;
-};
 type WorkerResponseClaimIdPart = {
   claimId: string;
 };
@@ -36,7 +30,7 @@ export class ManagerService {
       const claims = await this.claimRepository.getIdleClaims();
       // TODO: strip unnecessary fields from claims with zod or with prisma
       await this.sendClaimsToWorker(claims);
-      this.logger.debug(`Claims ${claims.map((claim) => claim.id)} sent`);
+      this.logger.debug(`${claims.length} claims sent`);
       await new Promise((resolve) => {
         setTimeout(resolve, 300);
       });
